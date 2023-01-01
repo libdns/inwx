@@ -112,14 +112,14 @@ func (c *Client) GetRecords(domain string) ([]NameserverRecord, error) {
 	})
 
 	if err != nil {
-		return []NameserverRecord{}, err
+		return nil, err
 	}
 
 	data := NameserverInfoResponse{}
 	err = mapstructure.Decode(response, &data)
 
 	if err != nil {
-		return []NameserverRecord{}, err
+		return nil, err
 	}
 
 	return data.Records, nil
@@ -139,14 +139,14 @@ func (c *Client) FindRecords(record NameserverRecord, domain string, matchConten
 	response, err := c.call("nameserver.info", request)
 
 	if err != nil {
-		return []NameserverRecord{}, err
+		return nil, err
 	}
 
 	data := NameserverInfoResponse{}
 	err = mapstructure.Decode(response, &data)
 
 	if err != nil {
-		return []NameserverRecord{}, err
+		return nil, err
 	}
 
 	return data.Records, nil

@@ -30,13 +30,13 @@ func (p *Provider) GetRecords(ctx context.Context, zone string) ([]libdns.Record
 	defer p.cleanClient()
 
 	if err != nil {
-		return []libdns.Record{}, err
+		return nil, err
 	}
 
 	records, err := client.GetRecords(getDomain(zone))
 
 	if err != nil {
-		return []libdns.Record{}, err
+		return nil, err
 	}
 
 	results := make([]libdns.Record, 0, len(records))
@@ -54,7 +54,7 @@ func (p *Provider) AppendRecords(ctx context.Context, zone string, records []lib
 	defer p.cleanClient()
 
 	if err != nil {
-		return []libdns.Record{}, err
+		return nil, err
 	}
 
 	var results []libdns.Record
@@ -63,7 +63,7 @@ func (p *Provider) AppendRecords(ctx context.Context, zone string, records []lib
 		var recordId, err = client.CreateRecord(inwxRecord(record), getDomain(zone))
 
 		if err != nil {
-			return []libdns.Record{}, err
+			return nil, err
 		}
 
 		record.ID = strconv.Itoa(recordId)
@@ -81,7 +81,7 @@ func (p *Provider) SetRecords(ctx context.Context, zone string, records []libdns
 	defer p.cleanClient()
 
 	if err != nil {
-		return []libdns.Record{}, err
+		return nil, err
 	}
 
 	var results []libdns.Record
@@ -91,7 +91,7 @@ func (p *Provider) SetRecords(ctx context.Context, zone string, records []libdns
 			matches, err := p.client.FindRecords(inwxRecord(record), getDomain(zone), false)
 
 			if err != nil {
-				return []libdns.Record{}, err
+				return nil, err
 			}
 
 			if len(matches) == 1 {
@@ -102,7 +102,7 @@ func (p *Provider) SetRecords(ctx context.Context, zone string, records []libdns
 				recordId, err := client.CreateRecord(inwxRecord(record), getDomain(zone))
 
 				if err != nil {
-					return []libdns.Record{}, err
+					return nil, err
 				}
 
 				record.ID = strconv.Itoa(recordId)
@@ -113,14 +113,14 @@ func (p *Provider) SetRecords(ctx context.Context, zone string, records []libdns
 			}
 
 			if len(matches) > 1 {
-				return []libdns.Record{}, fmt.Errorf("Found more than one DNS record for %v.", record)
+				return nil, fmt.Errorf("Found more than one DNS record for %v.", record)
 			}
 		}
 
 		err := client.UpdateRecord(inwxRecord(record))
 
 		if err != nil {
-			return []libdns.Record{}, err
+			return nil, err
 		}
 
 		results = append(results, record)
@@ -136,7 +136,7 @@ func (p *Provider) DeleteRecords(ctx context.Context, zone string, records []lib
 	defer p.cleanClient()
 
 	if err != nil {
-		return []libdns.Record{}, err
+		return nil, err
 	}
 
 	var results []libdns.Record
@@ -148,7 +148,7 @@ func (p *Provider) DeleteRecords(ctx context.Context, zone string, records []lib
 			matches, err := p.client.FindRecords(inwxRecord(record), getDomain(zone), true)
 
 			if err != nil {
-				return []libdns.Record{}, err
+				return nil, err
 			}
 
 			if len(matches) == 1 {
@@ -156,14 +156,14 @@ func (p *Provider) DeleteRecords(ctx context.Context, zone string, records []lib
 			}
 
 			if len(matches) > 1 {
-				return []libdns.Record{}, fmt.Errorf("Found more than one DNS record for %v.", record)
+				return nil, fmt.Errorf("Found more than one DNS record for %v.", record)
 			}
 		}
 
 		err := client.DeleteRecord(inwxRecord(delRecord))
 
 		if err != nil {
-			return []libdns.Record{}, err
+			return nil, err
 		}
 
 		results = append(results, delRecord)
