@@ -31,8 +31,8 @@ import (
 
 func main() {
     provider := &inwx.Provider{
-        User: "<username>",
-        Pass: "<password>",
+        Username: "<username>",
+        Password: "<password>",
         SharedSecret: "<sharedSecret>",
         // Uncomment the following line, if the test environment should be used:
         // EndpointURL: "https://api.ote.domrobot.com/xmlrpc/"
