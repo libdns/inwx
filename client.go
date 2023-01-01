@@ -238,8 +238,7 @@ func (c *Client) call(method string, params any) (any, error) {
 
 func (r *ErrorResponse) Error() string {
 	if r.Reason != "" {
-		return fmt.Sprintf("(%d) %s. Reason: (%s) %s",
-			r.Code, r.Message, r.ReasonCode, r.Reason)
+		return fmt.Sprintf("(%d) %s. Reason: (%s) %s", r.Code, r.Message, r.ReasonCode, r.Reason)
 	}
 
 	return fmt.Sprintf("(%d) %s", r.Code, r.Message)
