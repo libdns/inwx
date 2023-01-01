@@ -91,10 +91,7 @@ type AccountUnlockRequest struct {
 	TAN string `xmlrpc:"tan"`
 }
 
-const (
-	endpointURL     = "https://api.domrobot.com/xmlrpc/"
-	testEndpointURL = "https://api.ote.domrobot.com/xmlrpc/"
-)
+const endpointURL = "https://api.domrobot.com/xmlrpc/"
 
 func newClient(endpointURL string) (*Client, error) {
 	rpcClient, err := xmlrpc.NewClient(endpointURL, nil)

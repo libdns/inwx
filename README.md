@@ -34,7 +34,8 @@ func main() {
         User: "<username>",
         Pass: "<password>",
         SharedSecret: "<sharedSecret>",
-        Test: true,
+        // Uncomment the following line, if the test environment should be used:
+        // EndpointURL: "https://api.ote.domrobot.com/xmlrpc/"
     }
     zone := "example.com."
 

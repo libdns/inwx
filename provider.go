@@ -17,7 +17,6 @@ type Provider struct {
 	Username     string `json:"username,omitempty"`
 	Password     string `json:"password,omitempty"`
 	SharedSecret string `json:"shared_secret,omitempty"`
-	Test         bool   `json:"test,omitempty"`
 	EndpointURL  string `json:"endpoint_url,omitempty"`
 
 	client   *Client
@@ -219,10 +218,6 @@ func (p *Provider) cleanClient() {
 func (p *Provider) getEndpointURL() string {
 	if p.EndpointURL != "" {
 		return p.EndpointURL
-	}
-
-	if p.Test {
-		return testEndpointURL
 	}
 
 	return endpointURL
