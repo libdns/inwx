@@ -19,7 +19,7 @@ type Provider struct {
 	SharedSecret string `json:"shared_secret,omitempty"`
 	EndpointURL  string `json:"endpoint_url,omitempty"`
 
-	client   *Client
+	client   *client
 	clientMu sync.Mutex
 }
 
@@ -32,7 +32,7 @@ func (p *Provider) GetRecords(ctx context.Context, zone string) ([]libdns.Record
 		return nil, err
 	}
 
-	records, err := client.GetRecords(getDomain(zone))
+	records, err := client.getRecords(getDomain(zone))
 
 	if err != nil {
 		return nil, err
@@ -59,7 +59,7 @@ func (p *Provider) AppendRecords(ctx context.Context, zone string, records []lib
 	var results []libdns.Record
 
 	for _, record := range records {
-		var recordId, err = client.CreateRecord(inwxRecord(record), getDomain(zone))
+		var recordId, err = client.createRecord(inwxRecord(record), getDomain(zone))
 
 		if err != nil {
 			return nil, err
@@ -87,7 +87,7 @@ func (p *Provider) SetRecords(ctx context.Context, zone string, records []libdns
 
 	for _, record := range records {
 		if record.ID == "" {
-			matches, err := p.client.FindRecords(inwxRecord(record), getDomain(zone), false)
+			matches, err := p.client.findRecords(inwxRecord(record), getDomain(zone), false)
 
 			if err != nil {
 				return nil, err
@@ -98,7 +98,7 @@ func (p *Provider) SetRecords(ctx context.Context, zone string, records []libdns
 			}
 
 			if len(matches) == 0 {
-				recordId, err := client.CreateRecord(inwxRecord(record), getDomain(zone))
+				recordId, err := client.createRecord(inwxRecord(record), getDomain(zone))
 
 				if err != nil {
 					return nil, err
@@ -116,7 +116,7 @@ func (p *Provider) SetRecords(ctx context.Context, zone string, records []libdns
 			}
 		}
 
-		err := client.UpdateRecord(inwxRecord(record))
+		err := client.updateRecord(inwxRecord(record))
 
 		if err != nil {
 			return nil, err
@@ -144,7 +144,7 @@ func (p *Provider) DeleteRecords(ctx context.Context, zone string, records []lib
 		delRecord := record
 
 		if record.ID == "" {
-			matches, err := p.client.FindRecords(inwxRecord(record), getDomain(zone), true)
+			matches, err := p.client.findRecords(inwxRecord(record), getDomain(zone), true)
 
 			if err != nil {
 				return nil, err
@@ -159,7 +159,7 @@ func (p *Provider) DeleteRecords(ctx context.Context, zone string, records []lib
 			}
 		}
 
-		err := client.DeleteRecord(inwxRecord(delRecord))
+		err := client.deleteRecord(inwxRecord(delRecord))
 
 		if err != nil {
 			return nil, err
@@ -171,7 +171,7 @@ func (p *Provider) DeleteRecords(ctx context.Context, zone string, records []lib
 	return results, nil
 }
 
-func (p *Provider) getClient() (*Client, error) {
+func (p *Provider) getClient() (*client, error) {
 	p.clientMu.Lock()
 	defer p.clientMu.Unlock()
 
@@ -183,7 +183,7 @@ func (p *Provider) getClient() (*Client, error) {
 			return nil, err
 		}
 
-		requiresOtp, err := client.Login(p.Username, p.Password, p.SharedSecret)
+		requiresOtp, err := client.login(p.Username, p.Password, p.SharedSecret)
 
 		if err != nil {
 			return nil, err
@@ -196,7 +196,7 @@ func (p *Provider) getClient() (*Client, error) {
 				return nil, err
 			}
 
-			err = p.client.Unlock(tan)
+			err = p.client.unlock(tan)
 
 			if err != nil {
 				return nil, err
@@ -212,7 +212,7 @@ func (p *Provider) cleanClient() {
 		return
 	}
 
-	p.client.Logout()
+	p.client.logout()
 }
 
 func (p *Provider) getEndpointURL() string {
@@ -227,7 +227,7 @@ func getDomain(zone string) string {
 	return strings.TrimSuffix(zone, ".")
 }
 
-func libdnsRecord(record NameserverRecord, zone string) libdns.Record {
+func libdnsRecord(record nameserverRecord, zone string) libdns.Record {
 	return libdns.Record{
 		ID:       strconv.Itoa(record.ID),
 		Type:     record.Type,
@@ -238,10 +238,10 @@ func libdnsRecord(record NameserverRecord, zone string) libdns.Record {
 	}
 }
 
-func inwxRecord(record libdns.Record) NameserverRecord {
+func inwxRecord(record libdns.Record) nameserverRecord {
 	recordId, _ := strconv.Atoi(record.ID)
 
-	return NameserverRecord{
+	return nameserverRecord{
 		ID:       recordId,
 		Name:     record.Name,
 		Type:     record.Type,

@@ -7,11 +7,11 @@ import (
 	"github.com/mitchellh/mapstructure"
 )
 
-type Client struct {
+type client struct {
 	rpcClient *xmlrpc.Client
 }
 
-type Response struct {
+type response struct {
 	Code         int    `xmlrpc:"code"`
 	Message      string `xmlrpc:"msg"`
 	ReasonCode   string `xmlrpc:"reasonCode"`
@@ -19,14 +19,14 @@ type Response struct {
 	ResponseData any    `xmlrpc:"resData"`
 }
 
-type ErrorResponse struct {
+type errorResponse struct {
 	Code       int    `xmlrpc:"code"`
 	Message    string `xmlrpc:"msg"`
 	ReasonCode string `xmlrpc:"reasonCode"`
 	Reason     string `xmlrpc:"reason"`
 }
 
-type NameserverInfoRequest struct {
+type nameserverInfoRequest struct {
 	Domain   string `xmlrpc:"domain,omitempty"`
 	Name     string `xmlrpc:"name,omitempty"`
 	Type     string `xmlrpc:"type,omitempty"`
@@ -35,15 +35,15 @@ type NameserverInfoRequest struct {
 	Priority int    `xmlrpc:"prio,omitempty"`
 }
 
-type NameserverInfoResponse struct {
+type nameserverInfoResponse struct {
 	RoID    int                `mapstructure:"roId"`
 	Domain  string             `mapstructure:"domain"`
 	Type    string             `mapstructure:"type"`
 	Count   int                `mapstructure:"count"`
-	Records []NameserverRecord `mapstructure:"record"`
+	Records []nameserverRecord `mapstructure:"record"`
 }
 
-type NameserverCreateRecordRequest struct {
+type nameserverCreateRecordRequest struct {
 	Domain   string `xmlrpc:"domain"`
 	Name     string `xmlrpc:"name"`
 	Type     string `xmlrpc:"type"`
@@ -52,11 +52,11 @@ type NameserverCreateRecordRequest struct {
 	Priority int    `xmlrpc:"prio"`
 }
 
-type NameserverCreateRecordResponse struct {
+type nameserverCreateRecordResponse struct {
 	ID int `mapstructure:"id"`
 }
 
-type NameserverUpdateRecordRequest struct {
+type nameserverUpdateRecordRequest struct {
 	ID       int    `xmlrpc:"id"`
 	Name     string `xmlrpc:"name"`
 	Type     string `xmlrpc:"type"`
@@ -65,11 +65,11 @@ type NameserverUpdateRecordRequest struct {
 	Priority int    `xmlrpc:"prio"`
 }
 
-type NameserverDeleteRecordRequest struct {
+type nameserverDeleteRecordRequest struct {
 	ID int `mapstructure:"id"`
 }
 
-type NameserverRecord struct {
+type nameserverRecord struct {
 	ID       int    `mapstructure:"id"`
 	Name     string `mapstructure:"name"`
 	Type     string `mapstructure:"type"`
@@ -78,33 +78,33 @@ type NameserverRecord struct {
 	Priority int    `mapstructure:"prio"`
 }
 
-type AccountLoginRequest struct {
+type accountLoginRequest struct {
 	User string `xmlrpc:"user"`
 	Pass string `xmlrpc:"pass"`
 }
 
-type AccountLoginResponse struct {
+type accountLoginResponse struct {
 	TFA string `mapstructure:"tfa"`
 }
 
-type AccountUnlockRequest struct {
+type accountUnlockRequest struct {
 	TAN string `xmlrpc:"tan"`
 }
 
 const endpointURL = "https://api.domrobot.com/xmlrpc/"
 
-func newClient(endpointURL string) (*Client, error) {
+func newClient(endpointURL string) (*client, error) {
 	rpcClient, err := xmlrpc.NewClient(endpointURL, nil)
 
 	if err != nil {
 		return nil, err
 	}
 
-	return &Client{rpcClient}, nil
+	return &client{rpcClient}, nil
 }
 
-func (c *Client) GetRecords(domain string) ([]NameserverRecord, error) {
-	response, err := c.call("nameserver.info", NameserverInfoRequest{
+func (c *client) getRecords(domain string) ([]nameserverRecord, error) {
+	response, err := c.call("nameserver.info", nameserverInfoRequest{
 		Domain: domain,
 	})
 
@@ -112,7 +112,7 @@ func (c *Client) GetRecords(domain string) ([]NameserverRecord, error) {
 		return nil, err
 	}
 
-	data := NameserverInfoResponse{}
+	data := nameserverInfoResponse{}
 	err = mapstructure.Decode(response, &data)
 
 	if err != nil {
@@ -122,8 +122,8 @@ func (c *Client) GetRecords(domain string) ([]NameserverRecord, error) {
 	return data.Records, nil
 }
 
-func (c *Client) FindRecords(record NameserverRecord, domain string, matchContent bool) ([]NameserverRecord, error) {
-	request := NameserverInfoRequest{
+func (c *client) findRecords(record nameserverRecord, domain string, matchContent bool) ([]nameserverRecord, error) {
+	request := nameserverInfoRequest{
 		Domain: domain,
 		Type:   record.Type,
 		Name:   record.Name,
@@ -139,7 +139,7 @@ func (c *Client) FindRecords(record NameserverRecord, domain string, matchConten
 		return nil, err
 	}
 
-	data := NameserverInfoResponse{}
+	data := nameserverInfoResponse{}
 	err = mapstructure.Decode(response, &data)
 
 	if err != nil {
@@ -149,8 +149,8 @@ func (c *Client) FindRecords(record NameserverRecord, domain string, matchConten
 	return data.Records, nil
 }
 
-func (c *Client) CreateRecord(record NameserverRecord, domain string) (int, error) {
-	response, err := c.call("nameserver.createRecord", NameserverCreateRecordRequest{
+func (c *client) createRecord(record nameserverRecord, domain string) (int, error) {
+	response, err := c.call("nameserver.createRecord", nameserverCreateRecordRequest{
 		Domain:   domain,
 		Name:     record.Name,
 		Type:     record.Type,
@@ -163,18 +163,18 @@ func (c *Client) CreateRecord(record NameserverRecord, domain string) (int, erro
 		return 0, err
 	}
 
-	data := NameserverCreateRecordResponse{}
+	data := nameserverCreateRecordResponse{}
 	mapstructure.Decode(response, &data)
 
 	return data.ID, nil
 }
 
-func (c *Client) UpdateRecord(record NameserverRecord) error {
+func (c *client) updateRecord(record nameserverRecord) error {
 	if record.ID == 0 {
-		return fmt.Errorf("Record cannot be updated because the ID is not set.")
+		return fmt.Errorf("record cannot be updated because the ID is not set")
 	}
 
-	_, err := c.call("nameserver.updateRecord", NameserverUpdateRecordRequest{
+	_, err := c.call("nameserver.updateRecord", nameserverUpdateRecordRequest{
 		ID:       record.ID,
 		Name:     record.Name,
 		Type:     record.Type,
@@ -186,16 +186,16 @@ func (c *Client) UpdateRecord(record NameserverRecord) error {
 	return err
 }
 
-func (c *Client) DeleteRecord(record NameserverRecord) error {
-	_, err := c.call("nameserver.deleteRecord", NameserverDeleteRecordRequest{
+func (c *client) deleteRecord(record nameserverRecord) error {
+	_, err := c.call("nameserver.deleteRecord", nameserverDeleteRecordRequest{
 		ID: record.ID,
 	})
 
 	return err
 }
 
-func (c *Client) Login(username string, password string, sharedSecret string) (bool, error) {
-	response, err := c.call("account.login", AccountLoginRequest{
+func (c *client) login(username string, password string, sharedSecret string) (bool, error) {
+	response, err := c.call("account.login", accountLoginRequest{
 		User: username,
 		Pass: password,
 	})
@@ -204,28 +204,28 @@ func (c *Client) Login(username string, password string, sharedSecret string) (b
 		return false, err
 	}
 
-	data := AccountLoginResponse{}
+	data := accountLoginResponse{}
 	mapstructure.Decode(response, &data)
 
 	return data.TFA == "GOOGLE-AUTH", err
 }
 
-func (c *Client) Logout() error {
+func (c *client) logout() error {
 	_, err := c.call("account.logout", nil)
 
 	return err
 }
 
-func (c *Client) Unlock(tan string) error {
-	_, err := c.call("account.unlock", AccountUnlockRequest{
+func (c *client) unlock(tan string) error {
+	_, err := c.call("account.unlock", accountUnlockRequest{
 		TAN: tan,
 	})
 
 	return err
 }
 
-func (c *Client) call(method string, params any) (any, error) {
-	var response Response
+func (c *client) call(method string, params any) (any, error) {
+	var response response
 
 	err := c.rpcClient.Call(method, params, &response)
 
@@ -236,7 +236,7 @@ func (c *Client) call(method string, params any) (any, error) {
 	return response.ResponseData, checkResponse(response)
 }
 
-func (r *ErrorResponse) Error() string {
+func (r *errorResponse) Error() string {
 	if r.Reason != "" {
 		return fmt.Sprintf("(%d) %s. Reason: (%s) %s", r.Code, r.Message, r.ReasonCode, r.Reason)
 	}
@@ -244,12 +244,12 @@ func (r *ErrorResponse) Error() string {
 	return fmt.Sprintf("(%d) %s", r.Code, r.Message)
 }
 
-func checkResponse(r Response) error {
+func checkResponse(r response) error {
 	if c := r.Code; c >= 1000 && c <= 1500 {
 		return nil
 	}
 
-	return &ErrorResponse{
+	return &errorResponse{
 		Code:       r.Code,
 		Message:    r.Message,
 		Reason:     r.Reason,
