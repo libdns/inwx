@@ -111,7 +111,7 @@ func (p *Provider) SetRecords(ctx context.Context, zone string, records []libdns
 			}
 
 			if len(matches) > 1 {
-				return nil, fmt.Errorf("Found more than one DNS record for %v.", record)
+				return nil, fmt.Errorf("found more than one DNS record for %v", record)
 			}
 		}
 
@@ -154,7 +154,7 @@ func (p *Provider) DeleteRecords(ctx context.Context, zone string, records []lib
 			}
 
 			if len(matches) > 1 {
-				return nil, fmt.Errorf("Found more than one DNS record for %v.", record)
+				return nil, fmt.Errorf("found more than one DNS record for %v", record)
 			}
 		}
 
