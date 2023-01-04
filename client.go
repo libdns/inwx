@@ -166,7 +166,11 @@ func (c *client) createRecord(record nameserverRecord, domain string) (int, erro
 	}
 
 	data := nameserverCreateRecordResponse{}
-	mapstructure.Decode(response, &data)
+	err = mapstructure.Decode(response, &data)
+
+	if err != nil {
+		return 0, err
+	}
 
 	return data.ID, nil
 }
