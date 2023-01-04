@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/libdns/libdns"
-	"github.com/pquerna/otp/totp"
 )
 
 // Provider facilitates DNS record manipulation with INWX.
@@ -26,7 +25,7 @@ type Provider struct {
 // GetRecords lists all the records in the zone.
 func (p *Provider) GetRecords(ctx context.Context, zone string) ([]libdns.Record, error) {
 	client, err := p.getClient()
-	defer p.cleanClient()
+	defer p.removeClient()
 
 	if err != nil {
 		return nil, err
@@ -50,7 +49,7 @@ func (p *Provider) GetRecords(ctx context.Context, zone string) ([]libdns.Record
 // AppendRecords adds records to the zone. It returns the records that were added.
 func (p *Provider) AppendRecords(ctx context.Context, zone string, records []libdns.Record) ([]libdns.Record, error) {
 	client, err := p.getClient()
-	defer p.cleanClient()
+	defer p.removeClient()
 
 	if err != nil {
 		return nil, err
@@ -77,7 +76,7 @@ func (p *Provider) AppendRecords(ctx context.Context, zone string, records []lib
 // It returns the updated records.
 func (p *Provider) SetRecords(ctx context.Context, zone string, records []libdns.Record) ([]libdns.Record, error) {
 	client, err := p.getClient()
-	defer p.cleanClient()
+	defer p.removeClient()
 
 	if err != nil {
 		return nil, err
@@ -132,7 +131,7 @@ func (p *Provider) SetRecords(ctx context.Context, zone string, records []libdns
 // DeleteRecords deletes the records from the zone. It returns the records that were deleted.
 func (p *Provider) DeleteRecords(ctx context.Context, zone string, records []libdns.Record) ([]libdns.Record, error) {
 	client, err := p.getClient()
-	defer p.cleanClient()
+	defer p.removeClient()
 
 	if err != nil {
 		return nil, err
@@ -183,36 +182,27 @@ func (p *Provider) getClient() (*client, error) {
 			return nil, err
 		}
 
-		requiresOtp, err := client.login(p.Username, p.Password, p.SharedSecret)
+		err = client.login(p.Username, p.Password, p.SharedSecret)
 
 		if err != nil {
 			return nil, err
-		}
-
-		if requiresOtp {
-			tan, err := totp.GenerateCode(p.SharedSecret, time.Now())
-
-			if err != nil {
-				return nil, err
-			}
-
-			err = p.client.unlock(tan)
-
-			if err != nil {
-				return nil, err
-			}
 		}
 	}
 
 	return p.client, nil
 }
 
-func (p *Provider) cleanClient() {
+func (p *Provider) removeClient() {
+	p.clientMu.Lock()
+	defer p.clientMu.Unlock()
+
 	if p.client == nil {
 		return
 	}
 
 	p.client.logout()
+
+	p.client = nil
 }
 
 func (p *Provider) getEndpointURL() string {

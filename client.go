@@ -2,9 +2,11 @@ package inwx
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/kolo/xmlrpc"
 	"github.com/mitchellh/mapstructure"
+	"github.com/pquerna/otp/totp"
 )
 
 type client struct {
@@ -201,13 +203,31 @@ func (c *client) login(username string, password string, sharedSecret string) (b
 	})
 
 	if err != nil {
-		return false, err
+		return err
 	}
 
 	data := accountLoginResponse{}
-	mapstructure.Decode(response, &data)
+	err = mapstructure.Decode(response, &data)
 
-	return data.TFA == "GOOGLE-AUTH", err
+	if err != nil {
+		return err
+	}
+
+	if data.TFA == "GOOGLE-AUTH" {
+		tan, err := totp.GenerateCode(sharedSecret, time.Now())
+
+		if err != nil {
+			return err
+		}
+
+		err = c.unlock(tan)
+
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 func (c *client) logout() error {
