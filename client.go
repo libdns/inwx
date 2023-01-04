@@ -80,6 +80,16 @@ type nameserverRecord struct {
 	Priority int    `mapstructure:"prio"`
 }
 
+type nameserverCreateRequest struct {
+	Domain string   `xmlrpc:"domain"`
+	Type   string   `xmlrpc:"type"`
+	NS     []string `xmlrpc:"ns"`
+}
+
+type nameserverDeleteRequest struct {
+	Domain string `xmlrpc:"domain"`
+}
+
 type accountLoginRequest struct {
 	User string `xmlrpc:"user"`
 	Pass string `xmlrpc:"pass"`
@@ -200,7 +210,25 @@ func (c *client) deleteRecord(record nameserverRecord) error {
 	return err
 }
 
-func (c *client) login(username string, password string, sharedSecret string) (bool, error) {
+func (c *client) createNameserver(domain string, _type string, nameservers []string) error {
+	_, err := c.call("nameserver.create", nameserverCreateRequest{
+		Domain: domain,
+		Type:   _type,
+		NS:     nameservers,
+	})
+
+	return err
+}
+
+func (c *client) deleteNameserver(domain string) error {
+	_, err := c.call("nameserver.delete", nameserverDeleteRequest{
+		Domain: domain,
+	})
+
+	return err
+}
+
+func (c *client) login(username string, password string, sharedSecret string) error {
 	response, err := c.call("account.login", accountLoginRequest{
 		User: username,
 		Pass: password,
