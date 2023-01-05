@@ -167,7 +167,7 @@ func (c *client) createRecord(record nameserverRecord, domain string) (int, erro
 		Name:     record.Name,
 		Type:     record.Type,
 		Content:  record.Content,
-		TTL:      record.TTL,
+		TTL:      ensureMinTTL(record.TTL),
 		Priority: record.Priority,
 	})
 
@@ -195,7 +195,7 @@ func (c *client) updateRecord(record nameserverRecord) error {
 		Name:     record.Name,
 		Type:     record.Type,
 		Content:  record.Content,
-		TTL:      record.TTL,
+		TTL:      ensureMinTTL(record.TTL),
 		Priority: record.Priority,
 	})
 
@@ -307,4 +307,15 @@ func checkResponse(r response) error {
 		Reason:     r.Reason,
 		ReasonCode: r.ReasonCode,
 	}
+}
+
+// Make sure that the TTL is at least 300 seconds, because INWX does
+// not allow smaller TTL values.
+// https://kb.inwx.com/en-us/3-nameserver/120-can-i-change-the-ttl
+func ensureMinTTL(ttl int) int {
+	if ttl < 300 {
+		return 300
+	}
+
+	return ttl
 }
