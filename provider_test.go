@@ -52,14 +52,14 @@ func contains[T any](elements []T, predicate func(T) bool) bool {
 }
 
 func createTestNameserver(p *Provider) error {
-	client, err := p.getClient()
-	defer p.removeClient()
+	client, err := p.getClient(context.TODO())
+	defer p.removeClient(context.TODO())
 
 	if err != nil {
 		return err
 	}
 
-	err = client.createNameserver(getDomain(zone), "MASTER", []string{"ns.ote.inwx.de", "ns2.ote.inwx.de"})
+	err = client.createNameserver(context.TODO(), getDomain(zone), "MASTER", []string{"ns.ote.inwx.de", "ns2.ote.inwx.de"})
 
 	if err != nil {
 		return err
@@ -71,21 +71,21 @@ func createTestNameserver(p *Provider) error {
 }
 
 func deleteTestNameserver(p *Provider) error {
-	client, err := p.getClient()
-	defer p.removeClient()
+	client, err := p.getClient(context.TODO())
+	defer p.removeClient(context.TODO())
 
 	if err != nil {
 		return err
 	}
 
-	return client.deleteNameserver(getDomain(zone))
+	return client.deleteNameserver(context.TODO(), getDomain(zone))
 }
 
 func getProvider() *Provider {
 	return &Provider{
 		Username:    username,
 		Password:    password,
-		EndpointURL: "https://api.ote.domrobot.com/xmlrpc/",
+		EndpointURL: "https://api.ote.domrobot.com/jsonrpc/",
 	}
 }
 

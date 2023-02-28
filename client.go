@@ -1,40 +1,46 @@
 package inwx
 
 import (
+	"bytes"
+	"context"
+	"encoding/json"
 	"fmt"
+	"io/ioutil"
+	"net/http"
+	"net/http/cookiejar"
 	"time"
 
-	"github.com/kolo/xmlrpc"
 	"github.com/mitchellh/mapstructure"
 	"github.com/pquerna/otp/totp"
 )
 
 type client struct {
-	rpcClient *xmlrpc.Client
+	httpClient  *http.Client
+	endpointUrl string
 }
 
 type response struct {
-	Code         int    `xmlrpc:"code"`
-	Message      string `xmlrpc:"msg"`
-	ReasonCode   string `xmlrpc:"reasonCode"`
-	Reason       string `xmlrpc:"reason"`
-	ResponseData any    `xmlrpc:"resData"`
+	Code         int    `json:"code"`
+	Message      string `json:"msg"`
+	ReasonCode   string `json:"reasonCode"`
+	Reason       string `json:"reason"`
+	ResponseData any    `json:"resData"`
 }
 
 type errorResponse struct {
-	Code       int    `xmlrpc:"code"`
-	Message    string `xmlrpc:"msg"`
-	ReasonCode string `xmlrpc:"reasonCode"`
-	Reason     string `xmlrpc:"reason"`
+	Code       int    `json:"code"`
+	Message    string `json:"msg"`
+	ReasonCode string `json:"reasonCode"`
+	Reason     string `json:"reason"`
 }
 
 type nameserverInfoRequest struct {
-	Domain   string `xmlrpc:"domain,omitempty"`
-	Name     string `xmlrpc:"name,omitempty"`
-	Type     string `xmlrpc:"type,omitempty"`
-	Content  string `xmlrpc:"content,omitempty"`
-	TTL      int    `xmlrpc:"ttl,omitempty"`
-	Priority int    `xmlrpc:"prio,omitempty"`
+	Domain   string `json:"domain,omitempty"`
+	Name     string `json:"name,omitempty"`
+	Type     string `json:"type,omitempty"`
+	Content  string `json:"content,omitempty"`
+	TTL      int    `json:"ttl,omitempty"`
+	Priority int    `json:"prio,omitempty"`
 }
 
 type nameserverInfoResponse struct {
@@ -46,12 +52,12 @@ type nameserverInfoResponse struct {
 }
 
 type nameserverCreateRecordRequest struct {
-	Domain   string `xmlrpc:"domain"`
-	Name     string `xmlrpc:"name"`
-	Type     string `xmlrpc:"type"`
-	Content  string `xmlrpc:"content"`
-	TTL      int    `xmlrpc:"ttl"`
-	Priority int    `xmlrpc:"prio"`
+	Domain   string `json:"domain"`
+	Name     string `json:"name"`
+	Type     string `json:"type"`
+	Content  string `json:"content"`
+	TTL      int    `json:"ttl"`
+	Priority int    `json:"prio"`
 }
 
 type nameserverCreateRecordResponse struct {
@@ -59,12 +65,12 @@ type nameserverCreateRecordResponse struct {
 }
 
 type nameserverUpdateRecordRequest struct {
-	ID       int    `xmlrpc:"id"`
-	Name     string `xmlrpc:"name"`
-	Type     string `xmlrpc:"type"`
-	Content  string `xmlrpc:"content"`
-	TTL      int    `xmlrpc:"ttl"`
-	Priority int    `xmlrpc:"prio"`
+	ID       int    `json:"id"`
+	Name     string `json:"name"`
+	Type     string `json:"type"`
+	Content  string `json:"content"`
+	TTL      int    `json:"ttl"`
+	Priority int    `json:"prio"`
 }
 
 type nameserverDeleteRecordRequest struct {
@@ -81,18 +87,18 @@ type nameserverRecord struct {
 }
 
 type nameserverCreateRequest struct {
-	Domain string   `xmlrpc:"domain"`
-	Type   string   `xmlrpc:"type"`
-	NS     []string `xmlrpc:"ns"`
+	Domain string   `json:"domain"`
+	Type   string   `json:"type"`
+	NS     []string `json:"ns"`
 }
 
 type nameserverDeleteRequest struct {
-	Domain string `xmlrpc:"domain"`
+	Domain string `json:"domain"`
 }
 
 type accountLoginRequest struct {
-	User string `xmlrpc:"user"`
-	Pass string `xmlrpc:"pass"`
+	User string `json:"user"`
+	Pass string `json:"pass"`
 }
 
 type accountLoginResponse struct {
@@ -100,23 +106,27 @@ type accountLoginResponse struct {
 }
 
 type accountUnlockRequest struct {
-	TAN string `xmlrpc:"tan"`
+	TAN string `json:"tan"`
 }
 
-const endpointURL = "https://api.domrobot.com/xmlrpc/"
+const endpointURL = "https://api.domrobot.com/jsonrpc/"
 
 func newClient(endpointURL string) (*client, error) {
-	rpcClient, err := xmlrpc.NewClient(endpointURL, nil)
-
+	jar, err := cookiejar.New(nil)
 	if err != nil {
 		return nil, err
 	}
 
-	return &client{rpcClient}, nil
+	httpClient := &http.Client{
+		Transport: &http.Transport{DisableCompression: true},
+		Jar:       jar,
+	}
+
+	return &client{httpClient, endpointURL}, nil
 }
 
-func (c *client) getRecords(domain string) ([]nameserverRecord, error) {
-	response, err := c.call("nameserver.info", nameserverInfoRequest{
+func (c *client) getRecords(ctx context.Context, domain string) ([]nameserverRecord, error) {
+	response, err := c.call(ctx, "nameserver.info", nameserverInfoRequest{
 		Domain: domain,
 	})
 
@@ -134,7 +144,7 @@ func (c *client) getRecords(domain string) ([]nameserverRecord, error) {
 	return data.Records, nil
 }
 
-func (c *client) findRecords(record nameserverRecord, domain string, matchContent bool) ([]nameserverRecord, error) {
+func (c *client) findRecords(ctx context.Context, record nameserverRecord, domain string, matchContent bool) ([]nameserverRecord, error) {
 	request := nameserverInfoRequest{
 		Domain: domain,
 		Type:   record.Type,
@@ -145,7 +155,7 @@ func (c *client) findRecords(record nameserverRecord, domain string, matchConten
 		request.Content = record.Content
 	}
 
-	response, err := c.call("nameserver.info", request)
+	response, err := c.call(ctx, "nameserver.info", request)
 
 	if err != nil {
 		return nil, err
@@ -161,8 +171,8 @@ func (c *client) findRecords(record nameserverRecord, domain string, matchConten
 	return data.Records, nil
 }
 
-func (c *client) createRecord(record nameserverRecord, domain string) (int, error) {
-	response, err := c.call("nameserver.createRecord", nameserverCreateRecordRequest{
+func (c *client) createRecord(ctx context.Context, record nameserverRecord, domain string) (int, error) {
+	response, err := c.call(ctx, "nameserver.createRecord", nameserverCreateRecordRequest{
 		Domain:   domain,
 		Name:     record.Name,
 		Type:     record.Type,
@@ -185,12 +195,12 @@ func (c *client) createRecord(record nameserverRecord, domain string) (int, erro
 	return data.ID, nil
 }
 
-func (c *client) updateRecord(record nameserverRecord) error {
+func (c *client) updateRecord(ctx context.Context, record nameserverRecord) error {
 	if record.ID == 0 {
 		return fmt.Errorf("record cannot be updated because the ID is not set")
 	}
 
-	_, err := c.call("nameserver.updateRecord", nameserverUpdateRecordRequest{
+	_, err := c.call(ctx, "nameserver.updateRecord", nameserverUpdateRecordRequest{
 		ID:       record.ID,
 		Name:     record.Name,
 		Type:     record.Type,
@@ -202,16 +212,16 @@ func (c *client) updateRecord(record nameserverRecord) error {
 	return err
 }
 
-func (c *client) deleteRecord(record nameserverRecord) error {
-	_, err := c.call("nameserver.deleteRecord", nameserverDeleteRecordRequest{
+func (c *client) deleteRecord(ctx context.Context, record nameserverRecord) error {
+	_, err := c.call(ctx, "nameserver.deleteRecord", nameserverDeleteRecordRequest{
 		ID: record.ID,
 	})
 
 	return err
 }
 
-func (c *client) createNameserver(domain string, _type string, nameservers []string) error {
-	_, err := c.call("nameserver.create", nameserverCreateRequest{
+func (c *client) createNameserver(ctx context.Context, domain string, _type string, nameservers []string) error {
+	_, err := c.call(ctx, "nameserver.create", nameserverCreateRequest{
 		Domain: domain,
 		Type:   _type,
 		NS:     nameservers,
@@ -220,16 +230,16 @@ func (c *client) createNameserver(domain string, _type string, nameservers []str
 	return err
 }
 
-func (c *client) deleteNameserver(domain string) error {
-	_, err := c.call("nameserver.delete", nameserverDeleteRequest{
+func (c *client) deleteNameserver(ctx context.Context, domain string) error {
+	_, err := c.call(ctx, "nameserver.delete", nameserverDeleteRequest{
 		Domain: domain,
 	})
 
 	return err
 }
 
-func (c *client) login(username string, password string, sharedSecret string) error {
-	response, err := c.call("account.login", accountLoginRequest{
+func (c *client) login(ctx context.Context, username string, password string, sharedSecret string) error {
+	response, err := c.call(ctx, "account.login", accountLoginRequest{
 		User: username,
 		Pass: password,
 	})
@@ -252,7 +262,7 @@ func (c *client) login(username string, password string, sharedSecret string) er
 			return err
 		}
 
-		err = c.unlock(tan)
+		err = c.unlock(ctx, tan)
 
 		if err != nil {
 			return err
@@ -262,24 +272,52 @@ func (c *client) login(username string, password string, sharedSecret string) er
 	return nil
 }
 
-func (c *client) logout() error {
-	_, err := c.call("account.logout", nil)
+func (c *client) logout(ctx context.Context) error {
+	_, err := c.call(ctx, "account.logout", nil)
 
 	return err
 }
 
-func (c *client) unlock(tan string) error {
-	_, err := c.call("account.unlock", accountUnlockRequest{
+func (c *client) unlock(ctx context.Context, tan string) error {
+	_, err := c.call(ctx, "account.unlock", accountUnlockRequest{
 		TAN: tan,
 	})
 
 	return err
 }
 
-func (c *client) call(method string, params any) (any, error) {
-	var response response
+func (c *client) call(ctx context.Context, method string, params any) (any, error) {
+	requestBody := map[string]interface{}{}
+	requestBody["method"] = method
+	requestBody["params"] = params
+	requestJsonBody, err := json.Marshal(requestBody)
 
-	err := c.rpcClient.Call(method, params, &response)
+	if err != nil {
+		return nil, err
+	}
+
+	httpRequest, err := http.NewRequestWithContext(ctx, "POST", c.endpointUrl, bytes.NewReader(requestJsonBody))
+	if err != nil {
+		return nil, err
+	}
+
+	httpRequest.Header.Set("content-type", "application/json; charset=UTF-8")
+
+	httpResponse, err := c.httpClient.Do(httpRequest)
+	if err != nil {
+		return nil, err
+	}
+
+	responseBody, err := ioutil.ReadAll(httpResponse.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	var response response
+	err = json.Unmarshal(responseBody, &response)
+	if err != nil {
+		return nil, err
+	}
 
 	if err != nil {
 		return nil, err
