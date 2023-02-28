@@ -36,7 +36,7 @@ func main() {
         Password: "<password>",
         SharedSecret: "<sharedSecret>",
         // Uncomment the following line, if the test environment should be used:
-        // EndpointURL: "https://api.ote.domrobot.com/xmlrpc/"
+        // EndpointURL: "https://api.ote.domrobot.com/jsonrpc/"
     }
     zone := "example.com."
 

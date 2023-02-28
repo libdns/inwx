@@ -24,14 +24,14 @@ type Provider struct {
 
 // GetRecords lists all the records in the zone.
 func (p *Provider) GetRecords(ctx context.Context, zone string) ([]libdns.Record, error) {
-	client, err := p.getClient()
-	defer p.removeClient()
+	client, err := p.getClient(ctx)
+	defer p.removeClient(ctx)
 
 	if err != nil {
 		return nil, err
 	}
 
-	records, err := client.getRecords(getDomain(zone))
+	records, err := client.getRecords(ctx, getDomain(zone))
 
 	if err != nil {
 		return nil, err
@@ -48,8 +48,8 @@ func (p *Provider) GetRecords(ctx context.Context, zone string) ([]libdns.Record
 
 // AppendRecords adds records to the zone. It returns the records that were added.
 func (p *Provider) AppendRecords(ctx context.Context, zone string, records []libdns.Record) ([]libdns.Record, error) {
-	client, err := p.getClient()
-	defer p.removeClient()
+	client, err := p.getClient(ctx)
+	defer p.removeClient(ctx)
 
 	if err != nil {
 		return nil, err
@@ -58,7 +58,7 @@ func (p *Provider) AppendRecords(ctx context.Context, zone string, records []lib
 	var results []libdns.Record
 
 	for _, record := range records {
-		var recordId, err = client.createRecord(inwxRecord(record), getDomain(zone))
+		var recordId, err = client.createRecord(ctx, inwxRecord(record), getDomain(zone))
 
 		if err != nil {
 			return nil, err
@@ -75,8 +75,8 @@ func (p *Provider) AppendRecords(ctx context.Context, zone string, records []lib
 // SetRecords sets the records in the zone, either by updating existing records or creating new ones.
 // It returns the updated records.
 func (p *Provider) SetRecords(ctx context.Context, zone string, records []libdns.Record) ([]libdns.Record, error) {
-	client, err := p.getClient()
-	defer p.removeClient()
+	client, err := p.getClient(ctx)
+	defer p.removeClient(ctx)
 
 	if err != nil {
 		return nil, err
@@ -86,7 +86,7 @@ func (p *Provider) SetRecords(ctx context.Context, zone string, records []libdns
 
 	for _, record := range records {
 		if record.ID == "" {
-			matches, err := p.client.findRecords(inwxRecord(record), getDomain(zone), false)
+			matches, err := p.client.findRecords(ctx, inwxRecord(record), getDomain(zone), false)
 
 			if err != nil {
 				return nil, err
@@ -97,7 +97,7 @@ func (p *Provider) SetRecords(ctx context.Context, zone string, records []libdns
 			}
 
 			if len(matches) == 0 {
-				recordId, err := client.createRecord(inwxRecord(record), getDomain(zone))
+				recordId, err := client.createRecord(ctx, inwxRecord(record), getDomain(zone))
 
 				if err != nil {
 					return nil, err
@@ -115,7 +115,7 @@ func (p *Provider) SetRecords(ctx context.Context, zone string, records []libdns
 			}
 		}
 
-		err := client.updateRecord(inwxRecord(record))
+		err := client.updateRecord(ctx, inwxRecord(record))
 
 		if err != nil {
 			return nil, err
@@ -130,8 +130,8 @@ func (p *Provider) SetRecords(ctx context.Context, zone string, records []libdns
 
 // DeleteRecords deletes the records from the zone. It returns the records that were deleted.
 func (p *Provider) DeleteRecords(ctx context.Context, zone string, records []libdns.Record) ([]libdns.Record, error) {
-	client, err := p.getClient()
-	defer p.removeClient()
+	client, err := p.getClient(ctx)
+	defer p.removeClient(ctx)
 
 	if err != nil {
 		return nil, err
@@ -143,7 +143,7 @@ func (p *Provider) DeleteRecords(ctx context.Context, zone string, records []lib
 		delRecord := record
 
 		if record.ID == "" {
-			matches, err := p.client.findRecords(inwxRecord(record), getDomain(zone), true)
+			matches, err := p.client.findRecords(ctx, inwxRecord(record), getDomain(zone), true)
 
 			if err != nil {
 				return nil, err
@@ -158,7 +158,7 @@ func (p *Provider) DeleteRecords(ctx context.Context, zone string, records []lib
 			}
 		}
 
-		err := client.deleteRecord(inwxRecord(delRecord))
+		err := client.deleteRecord(ctx, inwxRecord(delRecord))
 
 		if err != nil {
 			return nil, err
@@ -170,7 +170,7 @@ func (p *Provider) DeleteRecords(ctx context.Context, zone string, records []lib
 	return results, nil
 }
 
-func (p *Provider) getClient() (*client, error) {
+func (p *Provider) getClient(ctx context.Context) (*client, error) {
 	p.clientMu.Lock()
 	defer p.clientMu.Unlock()
 
@@ -182,7 +182,7 @@ func (p *Provider) getClient() (*client, error) {
 			return nil, err
 		}
 
-		err = client.login(p.Username, p.Password, p.SharedSecret)
+		err = client.login(ctx, p.Username, p.Password, p.SharedSecret)
 
 		if err != nil {
 			return nil, err
@@ -192,7 +192,7 @@ func (p *Provider) getClient() (*client, error) {
 	return p.client, nil
 }
 
-func (p *Provider) removeClient() {
+func (p *Provider) removeClient(ctx context.Context) {
 	p.clientMu.Lock()
 	defer p.clientMu.Unlock()
 
@@ -200,7 +200,7 @@ func (p *Provider) removeClient() {
 		return
 	}
 
-	p.client.logout()
+	p.client.logout(ctx)
 
 	p.client = nil
 }
