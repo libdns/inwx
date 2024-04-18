@@ -6,6 +6,7 @@ INWX for [`libdns`](https://github.com/libdns/libdns)
 
 This package implements the [libdns interfaces](https://github.com/libdns/libdns) for [INWX](https://www.inwx.de/en), allowing you to manage DNS records.
 
+This provider uses the JSON-RPC API, which is described in the [official documentation](https://www.inwx.de/en/help/apidoc).
 
 Authenticating
 ==============
@@ -14,7 +15,7 @@ To authenticate you need to supply following credentials:
 
   * Your INWX username
   * Your INWX password
-  * A shared secret if you have enabled two-factor authentication
+  * A shared secret if you have enabled Mobile TAN (two-factor authentication)
 
 
 Example

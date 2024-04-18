@@ -13,10 +13,17 @@ import (
 
 // Provider facilitates DNS record manipulation with INWX.
 type Provider struct {
-	Username     string `json:"username,omitempty"`
-	Password     string `json:"password,omitempty"`
+	// Username of your INWX account.
+	Username string `json:"username,omitempty"`
+
+	// Password of your INWX account.
+	Password string `json:"password,omitempty"`
+
+	// The shared secret is used to generate a TAN if you have activated "Mobile TAN" for your INWX account.
 	SharedSecret string `json:"shared_secret,omitempty"`
-	EndpointURL  string `json:"endpoint_url,omitempty"`
+
+	// URL of the JSON-RPC API endpoint. It defaults to the production endpoint.
+	EndpointURL string `json:"endpoint_url,omitempty"`
 
 	client   *client
 	clientMu sync.Mutex
