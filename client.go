@@ -5,7 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/http/cookiejar"
 	"time"
@@ -40,7 +40,7 @@ type nameserverInfoRequest struct {
 	Type     string `json:"type,omitempty"`
 	Content  string `json:"content,omitempty"`
 	TTL      int    `json:"ttl,omitempty"`
-	Priority int    `json:"prio,omitempty"`
+	Priority uint   `json:"prio,omitempty"`
 }
 
 type nameserverInfoResponse struct {
@@ -57,7 +57,7 @@ type nameserverCreateRecordRequest struct {
 	Type     string `json:"type"`
 	Content  string `json:"content"`
 	TTL      int    `json:"ttl"`
-	Priority int    `json:"prio"`
+	Priority uint   `json:"prio"`
 }
 
 type nameserverCreateRecordResponse struct {
@@ -70,7 +70,7 @@ type nameserverUpdateRecordRequest struct {
 	Type     string `json:"type"`
 	Content  string `json:"content"`
 	TTL      int    `json:"ttl"`
-	Priority int    `json:"prio"`
+	Priority uint   `json:"prio"`
 }
 
 type nameserverDeleteRecordRequest struct {
@@ -83,7 +83,7 @@ type nameserverRecord struct {
 	Type     string `mapstructure:"type"`
 	Content  string `mapstructure:"content"`
 	TTL      int    `mapstructure:"ttl"`
-	Priority int    `mapstructure:"prio"`
+	Priority uint   `mapstructure:"prio"`
 }
 
 type nameserverCreateRequest struct {
@@ -308,17 +308,13 @@ func (c *client) call(ctx context.Context, method string, params any) (any, erro
 		return nil, err
 	}
 
-	responseBody, err := ioutil.ReadAll(httpResponse.Body)
+	responseBody, err := io.ReadAll(httpResponse.Body)
 	if err != nil {
 		return nil, err
 	}
 
 	var response response
 	err = json.Unmarshal(responseBody, &response)
-	if err != nil {
-		return nil, err
-	}
-
 	if err != nil {
 		return nil, err
 	}
