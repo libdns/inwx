@@ -14,23 +14,46 @@ var (
 	password    = os.Getenv("INWX_PASSWORD")
 	zone        = os.Getenv("ZONE")
 	testRecords = []libdns.Record{
-		{
-			Type:  "TXT",
-			Name:  "test_1",
-			Value: "test_value_1",
-			TTL:   time.Duration(300 * time.Second),
+		libdns.TXT{
+			Name: "test_1",
+			TTL:  time.Duration(300 * time.Second),
+			Text: "test_value_1",
 		},
-		{
-			Type:  "TXT",
-			Name:  "test_2",
-			Value: "test_value_2",
-			TTL:   time.Duration(300 * time.Second),
+		libdns.TXT{
+			Name: "test_2",
+			TTL:  time.Duration(300 * time.Second),
+			Text: "test_value_2",
 		},
-		{
-			Type:  "TXT",
-			Name:  "test_3",
-			Value: "test_value_3",
-			TTL:   time.Duration(300 * time.Second),
+		libdns.TXT{
+			Name: "test_3",
+			TTL:  time.Duration(300 * time.Second),
+			Text: "test_value_3",
+		},
+		libdns.MX{
+			Name:       "test_4",
+			TTL:        time.Duration(300 * time.Second),
+			Preference: 10,
+			Target:     "mx.example.com",
+		},
+		libdns.SRV{
+			Service:   "sip",
+			Transport: "tcp",
+			Name:      "test_4",
+			TTL:       time.Duration(300 * time.Second),
+			Priority:  0,
+			Weight:    5,
+			Port:      5060,
+			Target:    "sipserver.example.com",
+		},
+		libdns.ServiceBinding{
+			Scheme:   "https",
+			Name:     "test_5",
+			TTL:      time.Duration(300 * time.Second),
+			Priority: 1,
+			Target:   ".",
+			Params: libdns.SvcParams{
+				"alpn": {"h3", "h2"},
+			},
 		},
 	}
 )
@@ -49,6 +72,13 @@ func contains[T any](elements []T, predicate func(T) bool) bool {
 	_, ok := find(elements, predicate)
 
 	return ok
+}
+
+func compareRecords(lhs libdns.Record, rhs libdns.Record) bool {
+	return lhs.RR().Type == rhs.RR().Type &&
+		lhs.RR().Name == rhs.RR().Name &&
+		lhs.RR().Data == rhs.RR().Data &&
+		lhs.RR().TTL == rhs.RR().TTL
 }
 
 func createTestNameserver(p *Provider) error {
@@ -94,10 +124,6 @@ func TestProvider_GetRecords(t *testing.T) {
 
 	err := createTestNameserver(p)
 
-	if err != nil {
-		t.Fatal(err)
-	}
-
 	t.Cleanup(func() {
 		err = deleteTestNameserver(p)
 
@@ -106,14 +132,15 @@ func TestProvider_GetRecords(t *testing.T) {
 		}
 	})
 
-	records, err := p.GetRecords(context.Background(), zone)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	records, _ := p.GetRecords(context.Background(), zone)
 
 	for _, testRecord := range testRecords {
 		contains_ := contains(records, func(record libdns.Record) bool {
-			return record.Type == testRecord.Type &&
-				record.Name == testRecord.Name &&
-				record.Value == testRecord.Value &&
-				record.TTL == testRecord.TTL
+			return compareRecords(record, testRecord)
 		})
 
 		if !contains_ {
@@ -127,10 +154,6 @@ func TestProvider_AppendRecords(t *testing.T) {
 
 	err := createTestNameserver(p)
 
-	if err != nil {
-		t.Fatal(err)
-	}
-
 	t.Cleanup(func() {
 		err = deleteTestNameserver(p)
 
@@ -139,12 +162,15 @@ func TestProvider_AppendRecords(t *testing.T) {
 		}
 	})
 
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	newRecords := []libdns.Record{
-		{
-			Type:  "TXT",
-			Name:  "test_4",
-			Value: "test_value_4",
-			TTL:   time.Duration(300 * time.Second),
+		libdns.TXT{
+			Name: "test_4",
+			Text: "test_value_4",
+			TTL:  time.Duration(300 * time.Second),
 		},
 	}
 
@@ -156,10 +182,7 @@ func TestProvider_AppendRecords(t *testing.T) {
 
 	for _, newRecord := range newRecords {
 		contains_ := contains(records, func(record libdns.Record) bool {
-			return record.Type == newRecord.Type &&
-				record.Name == newRecord.Name &&
-				record.Value == newRecord.Value &&
-				record.TTL == newRecord.TTL
+			return compareRecords(record, newRecord)
 		})
 
 		if !contains_ {
@@ -175,10 +198,7 @@ func TestProvider_AppendRecords(t *testing.T) {
 
 	for _, newRecord := range newRecords {
 		contains_ := contains(records, func(record libdns.Record) bool {
-			return record.Type == newRecord.Type &&
-				record.Name == newRecord.Name &&
-				record.Value == newRecord.Value &&
-				record.TTL == newRecord.TTL
+			return compareRecords(record, newRecord)
 		})
 
 		if !contains_ {
@@ -192,10 +212,6 @@ func TestProvider_SetRecords(t *testing.T) {
 
 	err := createTestNameserver(p)
 
-	if err != nil {
-		t.Fatal(err)
-	}
-
 	t.Cleanup(func() {
 		err = deleteTestNameserver(p)
 
@@ -204,18 +220,20 @@ func TestProvider_SetRecords(t *testing.T) {
 		}
 	})
 
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	updatedRecords := []libdns.Record{
-		{
-			Type:  "TXT",
-			Name:  "test_3",
-			Value: "test_value_3_new",
-			TTL:   time.Duration(300 * time.Second),
+		libdns.TXT{
+			Name: "test_3",
+			Text: "test_value_3_new",
+			TTL:  time.Duration(300 * time.Second),
 		},
-		{
-			Type:  "TXT",
-			Name:  "test_4",
-			Value: "test_value_4",
-			TTL:   time.Duration(300 * time.Second),
+		libdns.TXT{
+			Name: "test_4",
+			Text: "test_value_4",
+			TTL:  time.Duration(300 * time.Second),
 		},
 	}
 
@@ -227,10 +245,7 @@ func TestProvider_SetRecords(t *testing.T) {
 
 	for _, updatedRecord := range updatedRecords {
 		contains_ := contains(records, func(record libdns.Record) bool {
-			return record.Type == updatedRecord.Type &&
-				record.Name == updatedRecord.Name &&
-				record.Value == updatedRecord.Value &&
-				record.TTL == updatedRecord.TTL
+			return compareRecords(record, updatedRecord)
 		})
 
 		if !contains_ {
@@ -246,10 +261,7 @@ func TestProvider_SetRecords(t *testing.T) {
 
 	for _, updatedRecord := range updatedRecords {
 		contains_ := contains(records, func(record libdns.Record) bool {
-			return record.Type == updatedRecord.Type &&
-				record.Name == updatedRecord.Name &&
-				record.Value == updatedRecord.Value &&
-				record.TTL == updatedRecord.TTL
+			return compareRecords(record, updatedRecord)
 		})
 
 		if !contains_ {
@@ -263,10 +275,6 @@ func TestProvider_DeleteRecords(t *testing.T) {
 
 	err := createTestNameserver(p)
 
-	if err != nil {
-		t.Fatal(err)
-	}
-
 	t.Cleanup(func() {
 		err = deleteTestNameserver(p)
 
@@ -275,12 +283,15 @@ func TestProvider_DeleteRecords(t *testing.T) {
 		}
 	})
 
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	deletedRecords := []libdns.Record{
-		{
-			Type:  "TXT",
-			Name:  "test_3",
-			Value: "test_value_3",
-			TTL:   time.Duration(300 * time.Second),
+		libdns.TXT{
+			Name: "test_3",
+			Text: "test_value_3",
+			TTL:  time.Duration(300 * time.Second),
 		},
 	}
 
@@ -292,10 +303,7 @@ func TestProvider_DeleteRecords(t *testing.T) {
 
 	for _, deletedRecord := range deletedRecords {
 		contains_ := contains(records, func(record libdns.Record) bool {
-			return record.Type == deletedRecord.Type &&
-				record.Name == deletedRecord.Name &&
-				record.Value == deletedRecord.Value &&
-				record.TTL == deletedRecord.TTL
+			return compareRecords(record, deletedRecord)
 		})
 
 		if !contains_ {
@@ -311,10 +319,7 @@ func TestProvider_DeleteRecords(t *testing.T) {
 
 	for _, deletedRecord := range deletedRecords {
 		contains_ := contains(records, func(record libdns.Record) bool {
-			return record.Type == deletedRecord.Type &&
-				record.Name == deletedRecord.Name &&
-				record.Value == deletedRecord.Value &&
-				record.TTL == deletedRecord.TTL
+			return compareRecords(record, deletedRecord)
 		})
 
 		if contains_ {
