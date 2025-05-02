@@ -10,7 +10,6 @@ import (
 	"net/http/cookiejar"
 	"time"
 
-	"github.com/mitchellh/mapstructure"
 	"github.com/pquerna/otp/totp"
 )
 
@@ -44,11 +43,11 @@ type nameserverInfoRequest struct {
 }
 
 type nameserverInfoResponse struct {
-	RoID    int                `mapstructure:"roId"`
-	Domain  string             `mapstructure:"domain"`
-	Type    string             `mapstructure:"type"`
-	Count   int                `mapstructure:"count"`
-	Records []nameserverRecord `mapstructure:"record"`
+	RoID    int                `json:"roId"`
+	Domain  string             `json:"domain"`
+	Type    string             `json:"type"`
+	Count   int                `json:"count"`
+	Records []nameserverRecord `json:"record"`
 }
 
 type nameserverCreateRecordRequest struct {
@@ -61,7 +60,7 @@ type nameserverCreateRecordRequest struct {
 }
 
 type nameserverCreateRecordResponse struct {
-	ID int `mapstructure:"id"`
+	ID int `json:"id"`
 }
 
 type nameserverUpdateRecordRequest struct {
@@ -74,16 +73,16 @@ type nameserverUpdateRecordRequest struct {
 }
 
 type nameserverDeleteRecordRequest struct {
-	ID int `mapstructure:"id"`
+	ID int `json:"id"`
 }
 
 type nameserverRecord struct {
-	ID       int    `mapstructure:"id"`
-	Name     string `mapstructure:"name"`
-	Type     string `mapstructure:"type"`
-	Content  string `mapstructure:"content"`
-	TTL      int    `mapstructure:"ttl"`
-	Priority uint   `mapstructure:"prio"`
+	ID       int    `json:"id"`
+	Name     string `json:"name"`
+	Type     string `json:"type"`
+	Content  string `json:"content"`
+	TTL      int    `json:"ttl"`
+	Priority uint   `json:"prio"`
 }
 
 type nameserverCreateRequest struct {
@@ -102,7 +101,7 @@ type accountLoginRequest struct {
 }
 
 type accountLoginResponse struct {
-	TFA string `mapstructure:"tfa"`
+	TFA string `json:"tfa"`
 }
 
 type accountUnlockRequest struct {
@@ -135,7 +134,7 @@ func (c *client) getRecords(ctx context.Context, domain string) ([]nameserverRec
 	}
 
 	data := nameserverInfoResponse{}
-	err = mapstructure.Decode(response, &data)
+	err = json.Unmarshal(response, &data)
 
 	if err != nil {
 		return nil, err
@@ -162,7 +161,7 @@ func (c *client) findRecords(ctx context.Context, record nameserverRecord, domai
 	}
 
 	data := nameserverInfoResponse{}
-	err = mapstructure.Decode(response, &data)
+	err = json.Unmarshal(response, &data)
 
 	if err != nil {
 		return nil, err
@@ -186,7 +185,7 @@ func (c *client) createRecord(ctx context.Context, record nameserverRecord, doma
 	}
 
 	data := nameserverCreateRecordResponse{}
-	err = mapstructure.Decode(response, &data)
+	err = json.Unmarshal(response, &data)
 
 	if err != nil {
 		return 0, err
@@ -249,7 +248,7 @@ func (c *client) login(ctx context.Context, username string, password string, sh
 	}
 
 	data := accountLoginResponse{}
-	err = mapstructure.Decode(response, &data)
+	err = json.Unmarshal(response, &data)
 
 	if err != nil {
 		return err
@@ -286,7 +285,7 @@ func (c *client) unlock(ctx context.Context, tan string) error {
 	return err
 }
 
-func (c *client) call(ctx context.Context, method string, params any) (any, error) {
+func (c *client) call(ctx context.Context, method string, params any) ([]byte, error) {
 	requestBody := map[string]interface{}{}
 	requestBody["method"] = method
 	requestBody["params"] = params
@@ -319,7 +318,12 @@ func (c *client) call(ctx context.Context, method string, params any) (any, erro
 		return nil, err
 	}
 
-	return response.ResponseData, checkResponse(response)
+	responseData, err := json.Marshal(response.ResponseData)
+	if err != nil {
+		return nil, err
+	}
+
+	return responseData, checkResponse(response)
 }
 
 func (r *errorResponse) Error() string {
