@@ -4,7 +4,6 @@ go 1.18
 
 require (
 	github.com/libdns/libdns v1.0.0
-	github.com/mitchellh/mapstructure v1.5.0
 	github.com/pquerna/otp v1.4.0
 )
 
