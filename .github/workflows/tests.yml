@@ -19,7 +19,7 @@ jobs:
       INWX_PASSWORD: ${{ secrets.INWX_PASSWORD }}
       ZONE: "test-${{ github.run_id }}.com"
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
 
     - name: Set up Go
       uses: actions/setup-go@v5
