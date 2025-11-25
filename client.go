@@ -43,7 +43,7 @@ type nameserverInfoRequest struct {
 }
 
 type nameserverInfoResponse struct {
-	RoID    int                `json:"roId"`
+	RoID    string             `json:"roId"`
 	Domain  string             `json:"domain"`
 	Type    string             `json:"type"`
 	Count   int                `json:"count"`
@@ -60,11 +60,11 @@ type nameserverCreateRecordRequest struct {
 }
 
 type nameserverCreateRecordResponse struct {
-	ID int `json:"id"`
+	ID string `json:"id"`
 }
 
 type nameserverUpdateRecordRequest struct {
-	ID       int    `json:"id"`
+	ID       string `json:"id"`
 	Name     string `json:"name"`
 	Type     string `json:"type"`
 	Content  string `json:"content"`
@@ -73,11 +73,11 @@ type nameserverUpdateRecordRequest struct {
 }
 
 type nameserverDeleteRecordRequest struct {
-	ID int `json:"id"`
+	ID string `json:"id"`
 }
 
 type nameserverRecord struct {
-	ID       int    `json:"id"`
+	ID       string `json:"id"`
 	Name     string `json:"name"`
 	Type     string `json:"type"`
 	Content  string `json:"content"`
@@ -170,7 +170,7 @@ func (c *client) findRecords(ctx context.Context, record nameserverRecord, domai
 	return data.Records, nil
 }
 
-func (c *client) createRecord(ctx context.Context, record nameserverRecord, domain string) (int, error) {
+func (c *client) createRecord(ctx context.Context, record nameserverRecord, domain string) (string, error) {
 	response, err := c.call(ctx, "nameserver.createRecord", nameserverCreateRecordRequest{
 		Domain:   domain,
 		Name:     record.Name,
@@ -181,21 +181,21 @@ func (c *client) createRecord(ctx context.Context, record nameserverRecord, doma
 	})
 
 	if err != nil {
-		return 0, err
+		return "", err
 	}
 
 	data := nameserverCreateRecordResponse{}
 	err = json.Unmarshal(response, &data)
 
 	if err != nil {
-		return 0, err
+		return "", err
 	}
 
 	return data.ID, nil
 }
 
 func (c *client) updateRecord(ctx context.Context, record nameserverRecord) error {
-	if record.ID == 0 {
+	if record.ID == "" {
 		return fmt.Errorf("record cannot be updated because the ID is not set")
 	}
 
