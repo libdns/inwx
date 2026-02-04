@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/cookiejar"
+	"strings"
 	"time"
 
 	"github.com/pquerna/otp/totp"
@@ -151,7 +152,7 @@ func (c *client) findRecords(ctx context.Context, record nameserverRecord, domai
 	}
 
 	if matchContent {
-		request.Content = record.Content
+		request.Content = strings.Trim(record.Content, "\"")
 	}
 
 	response, err := c.call(ctx, "nameserver.info", request)
