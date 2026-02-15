@@ -108,6 +108,22 @@ type accountUnlockRequest struct {
 	TAN string `json:"tan"`
 }
 
+type nameserverListRequest struct {
+	Page      int `json:"page,omitempty"`
+	PageLimit int `json:"pagelimit,omitempty"`
+}
+
+type nameserverListResponse struct {
+	Count   int                  `json:"count"`
+	Domains []nameserverListItem `json:"domains"`
+}
+
+type nameserverListItem struct {
+	RoID   int    `json:"roId"`
+	Domain string `json:"domain"`
+	Type   string `json:"type"`
+}
+
 const endpointURL = "https://api.domrobot.com/jsonrpc/"
 
 func newClient(endpointURL string) (*client, error) {
@@ -235,6 +251,40 @@ func (c *client) deleteNameserver(ctx context.Context, domain string) error {
 	})
 
 	return err
+}
+
+func (c *client) listNameservers(ctx context.Context) ([]nameserverListItem, error) {
+	var allDomains []nameserverListItem
+	page := 1
+	pageLimit := 100
+
+	for {
+		response, err := c.call(ctx, "nameserver.list", nameserverListRequest{
+			Page:      page,
+			PageLimit: pageLimit,
+		})
+
+		if err != nil {
+			return nil, err
+		}
+
+		data := nameserverListResponse{}
+		err = json.Unmarshal(response, &data)
+
+		if err != nil {
+			return nil, err
+		}
+
+		allDomains = append(allDomains, data.Domains...)
+
+		if len(allDomains) >= data.Count {
+			break
+		}
+
+		page++
+	}
+
+	return allDomains, nil
 }
 
 func (c *client) login(ctx context.Context, username string, password string, sharedSecret string) error {
