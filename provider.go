@@ -2,6 +2,7 @@ package inwx
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"sync"
@@ -44,18 +45,20 @@ func (p *Provider) GetRecords(ctx context.Context, zone string) ([]libdns.Record
 	}
 
 	results := make([]libdns.Record, 0, len(inwxRecords))
+	var errs []error
 
 	for _, inwxRecord := range inwxRecords {
 		result, err := libdnsRecord(inwxRecord, zone)
 
 		if err != nil {
-			return nil, fmt.Errorf("parsing INWX DNS record %+v: %v", inwxRecord, err)
+			errs = append(errs, fmt.Errorf("parsing INWX DNS record %+v: %v", inwxRecord, err))
+			continue
 		}
 
 		results = append(results, result)
 	}
 
-	return results, nil
+	return results, errors.Join(errs...)
 }
 
 // AppendRecords adds records to the zone. It returns the records that were added.
@@ -68,18 +71,20 @@ func (p *Provider) AppendRecords(ctx context.Context, zone string, records []lib
 	}
 
 	var results []libdns.Record
+	var errs []error
 
 	for _, record := range records {
 		var _, err = client.createRecord(ctx, inwxRecord(record), getDomain(zone))
 
 		if err != nil {
-			return nil, err
+			errs = append(errs, err)
+			continue
 		}
 
 		results = append(results, record)
 	}
 
-	return results, nil
+	return results, errors.Join(errs...)
 }
 
 // SetRecords sets the records in the zone, either by updating existing records or creating new ones.
@@ -102,11 +107,14 @@ func (p *Provider) SetRecords(ctx context.Context, zone string, records []libdns
 	}
 
 	var results []libdns.Record
+	var errs []error
+
 	for recordType, typeGroup := range groupedRecords {
 		for recordName, nameGroup := range typeGroup {
 			matches, err := p.client.findRecords(ctx, nameserverRecord{Type: recordType, Name: recordName}, getDomain(zone), false)
 			if err != nil {
-				return nil, err
+				errs = append(errs, err)
+				continue
 			}
 			for i, record := range nameGroup {
 
@@ -115,7 +123,8 @@ func (p *Provider) SetRecords(ctx context.Context, zone string, records []libdns
 					_, err := client.createRecord(ctx, inwxRecord(record), getDomain(zone))
 
 					if err != nil {
-						return nil, err
+						errs = append(errs, err)
+						continue
 					}
 
 				} else {
@@ -126,7 +135,8 @@ func (p *Provider) SetRecords(ctx context.Context, zone string, records []libdns
 					err = client.updateRecord(ctx, inwxRecord)
 
 					if err != nil {
-						return nil, err
+						errs = append(errs, err)
+						continue
 					}
 
 				}
@@ -139,7 +149,8 @@ func (p *Provider) SetRecords(ctx context.Context, zone string, records []libdns
 					err := client.deleteRecord(ctx, record)
 
 					if err != nil {
-						return nil, err
+						errs = append(errs, err)
+						continue
 					}
 				}
 
@@ -147,7 +158,7 @@ func (p *Provider) SetRecords(ctx context.Context, zone string, records []libdns
 		}
 	}
 
-	return results, nil
+	return results, errors.Join(errs...)
 }
 
 // DeleteRecords deletes the records from the zone. It returns the records that were deleted.
@@ -160,26 +171,29 @@ func (p *Provider) DeleteRecords(ctx context.Context, zone string, records []lib
 	}
 
 	var results []libdns.Record
+	var errs []error
 
 	for _, record := range records {
 		exactMatches, err := p.client.findRecords(ctx, inwxRecord(record), getDomain(zone), true)
 
 		if err != nil {
-			return nil, err
+			results = append(results, record)
+			continue
 		}
 
 		for _, inwxRecord := range exactMatches {
 			err := client.deleteRecord(ctx, inwxRecord)
 
 			if err != nil {
-				return nil, err
+				errs = append(errs, err)
+				continue
 			}
 
 			results = append(results, record)
 		}
 	}
 
-	return results, nil
+	return results, errors.Join(errs...)
 }
 
 func (p *Provider) getClient(ctx context.Context) (*client, error) {
