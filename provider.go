@@ -74,7 +74,14 @@ func (p *Provider) AppendRecords(ctx context.Context, zone string, records []lib
 	var errs []error
 
 	for _, record := range records {
-		var _, err = client.createRecord(ctx, inwxRecord(record), getDomain(zone))
+		inwxRecord, err := inwxRecord(record)
+
+		if err != nil {
+			errs = append(errs, err)
+			continue
+		}
+
+		_, err = client.createRecord(ctx, *inwxRecord, getDomain(zone))
 
 		if err != nil {
 			errs = append(errs, err)
@@ -118,9 +125,16 @@ func (p *Provider) SetRecords(ctx context.Context, zone string, records []libdns
 			}
 			for i, record := range nameGroup {
 
+				inwxRecord, err := inwxRecord(record)
+
+				if err != nil {
+					errs = append(errs, err)
+					continue
+				}
+
 				if i > len(matches)-1 {
 
-					_, err := client.createRecord(ctx, inwxRecord(record), getDomain(zone))
+					_, err := client.createRecord(ctx, *inwxRecord, getDomain(zone))
 
 					if err != nil {
 						errs = append(errs, err)
@@ -129,10 +143,9 @@ func (p *Provider) SetRecords(ctx context.Context, zone string, records []libdns
 
 				} else {
 
-					inwxRecord := inwxRecord(record)
 					inwxRecord.ID = matches[i].ID
 
-					err = client.updateRecord(ctx, inwxRecord)
+					err = client.updateRecord(ctx, *inwxRecord)
 
 					if err != nil {
 						errs = append(errs, err)
@@ -174,7 +187,14 @@ func (p *Provider) DeleteRecords(ctx context.Context, zone string, records []lib
 	var errs []error
 
 	for _, record := range records {
-		exactMatches, err := p.client.findRecords(ctx, inwxRecord(record), getDomain(zone), true)
+		inwxRecord, err := inwxRecord(record)
+
+		if err != nil {
+			errs = append(errs, err)
+			continue
+		}
+
+		exactMatches, err := p.client.findRecords(ctx, *inwxRecord, getDomain(zone), true)
 
 		if err != nil {
 			results = append(results, record)
@@ -260,7 +280,7 @@ func libdnsRecord(record nameserverRecord, zone string) (libdns.Record, error) {
 	}.Parse()
 }
 
-func inwxRecord(record libdns.Record) nameserverRecord {
+func inwxRecord(record libdns.Record) (*nameserverRecord, error) {
 	rr := record.RR()
 
 	inwxRecord := nameserverRecord{
@@ -270,7 +290,12 @@ func inwxRecord(record libdns.Record) nameserverRecord {
 		TTL:     int(rr.TTL.Seconds()),
 	}
 
-	switch rec := record.(type) {
+	parsed, err := rr.Parse()
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse record %s %s: %w", rr.Name, rr.Type, err)
+	}
+
+	switch rec := parsed.(type) {
 	case libdns.MX:
 		inwxRecord.Content = rec.Target
 		inwxRecord.Priority = uint(rec.Preference)
@@ -279,7 +304,7 @@ func inwxRecord(record libdns.Record) nameserverRecord {
 		inwxRecord.Priority = uint(rec.Priority)
 	}
 
-	return inwxRecord
+	return &inwxRecord, nil
 }
 
 // Interface guards
