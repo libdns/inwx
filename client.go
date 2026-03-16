@@ -197,14 +197,14 @@ func (c *client) createRecord(ctx context.Context, record nameserverRecord, doma
 	})
 
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("failed to create record %s %s: %w", record.Name, record.Type, err)
 	}
 
 	data := nameserverCreateRecordResponse{}
 	err = json.Unmarshal(response, &data)
 
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("failed to parse record creation response for %s %s: %w", record.Name, record.Type, err)
 	}
 
 	return data.ID, nil
@@ -224,7 +224,11 @@ func (c *client) updateRecord(ctx context.Context, record nameserverRecord) erro
 		Priority: record.Priority,
 	})
 
-	return err
+	if err != nil {
+		return fmt.Errorf("failed to update record %s %s: %w", record.Name, record.Type, err)
+	}
+
+	return nil
 }
 
 func (c *client) deleteRecord(ctx context.Context, record nameserverRecord) error {
@@ -232,7 +236,11 @@ func (c *client) deleteRecord(ctx context.Context, record nameserverRecord) erro
 		ID: record.ID,
 	})
 
-	return err
+	if err != nil {
+		return fmt.Errorf("failed to delete record %s %s: %w", record.Name, record.Type, err)
+	}
+
+	return nil
 }
 
 func (c *client) createNameserver(ctx context.Context, domain string, _type string, nameservers []string) error {
