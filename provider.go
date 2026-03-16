@@ -165,6 +165,32 @@ func (p *Provider) DeleteRecords(ctx context.Context, zone string, records []lib
 	return results, nil
 }
 
+// ListZones lists all zones (nameserver domains) available in the INWX account.
+func (p *Provider) ListZones(ctx context.Context) ([]libdns.Zone, error) {
+	client, err := p.getClient(ctx)
+	defer p.removeClient(ctx)
+
+	if err != nil {
+		return nil, err
+	}
+
+	domains, err := client.listNameservers(ctx)
+
+	if err != nil {
+		return nil, err
+	}
+
+	zones := make([]libdns.Zone, 0, len(domains))
+
+	for _, domain := range domains {
+		zones = append(zones, libdns.Zone{
+			Name: domain.Domain,
+		})
+	}
+
+	return zones, nil
+}
+
 func (p *Provider) getClient(ctx context.Context) (*client, error) {
 	p.clientMu.Lock()
 	defer p.clientMu.Unlock()
@@ -257,4 +283,5 @@ var (
 	_ libdns.RecordAppender = (*Provider)(nil)
 	_ libdns.RecordSetter   = (*Provider)(nil)
 	_ libdns.RecordDeleter  = (*Provider)(nil)
+	_ libdns.ZoneLister     = (*Provider)(nil)
 )

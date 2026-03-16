@@ -327,3 +327,39 @@ func TestProvider_DeleteRecords(t *testing.T) {
 		}
 	}
 }
+
+func TestProvider_ListZones(t *testing.T) {
+	p := getProvider()
+
+	err := createTestNameserver(p)
+
+	t.Cleanup(func() {
+		err = deleteTestNameserver(p)
+
+		if err != nil {
+			t.Fatal(err)
+		}
+	})
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	zones, err := p.ListZones(context.Background())
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(zones) == 0 {
+		t.Fatal("expected at least one zone, got none")
+	}
+
+	found := contains(zones, func(z libdns.Zone) bool {
+		return z.Name == getDomain(zone)
+	})
+
+	if !found {
+		t.Fatalf("expected zone %q not found in listed zones: %v", getDomain(zone), zones)
+	}
+}
