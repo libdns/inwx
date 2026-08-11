@@ -92,42 +92,59 @@ func (p *Provider) SetRecords(ctx context.Context, zone string, records []libdns
 		return nil, err
 	}
 
-	var results []libdns.Record
-
+	groupedRecords := map[string](map[string][]libdns.Record){}
 	for _, record := range records {
-		matches, err := p.client.findRecords(ctx, inwxRecord(record), getDomain(zone), false)
-
-		if err != nil {
-			return nil, err
+		rr := record.RR()
+		if _, ok := groupedRecords[rr.Type]; !ok {
+			groupedRecords[rr.Type] = map[string][]libdns.Record{}
 		}
+		groupedRecords[rr.Type][rr.Name] = append(groupedRecords[rr.Type][rr.Name], record)
+	}
 
-		if len(matches) == 0 {
-			_, err := client.createRecord(ctx, inwxRecord(record), getDomain(zone))
-
+	var results []libdns.Record
+	for recordType, typeGroup := range groupedRecords {
+		for recordName, nameGroup := range typeGroup {
+			matches, err := p.client.findRecords(ctx, nameserverRecord{Type: recordType, Name: recordName}, getDomain(zone), false)
 			if err != nil {
 				return nil, err
 			}
+			for i, record := range nameGroup {
 
-			results = append(results, record)
+				if i > len(matches)-1 {
 
-			continue
+					_, err := client.createRecord(ctx, inwxRecord(record), getDomain(zone))
+
+					if err != nil {
+						return nil, err
+					}
+
+				} else {
+
+					inwxRecord := inwxRecord(record)
+					inwxRecord.ID = matches[i].ID
+
+					err = client.updateRecord(ctx, inwxRecord)
+
+					if err != nil {
+						return nil, err
+					}
+
+				}
+
+				results = append(results, record)
+			}
+
+			if len(matches) > len(nameGroup) {
+				for _, record := range matches[len(nameGroup):] {
+					err := client.deleteRecord(ctx, record)
+
+					if err != nil {
+						return nil, err
+					}
+				}
+
+			}
 		}
-
-		if len(matches) > 1 {
-			return nil, fmt.Errorf("unexpectedly found more than 1 record for %v", record)
-		}
-
-		inwxRecord := inwxRecord(record)
-		inwxRecord.ID = matches[0].ID
-
-		err = client.updateRecord(ctx, inwxRecord)
-
-		if err != nil {
-			return nil, err
-		}
-
-		results = append(results, record)
-
 	}
 
 	return results, nil
